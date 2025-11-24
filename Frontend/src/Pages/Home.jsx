@@ -5,18 +5,19 @@ export default function Home() {
   const [roomCode, setRoomCode] = useState("");
   const navigate = useNavigate();
 
+  const generateRoomCode = () => {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  };
+
   const createRoom = () => {
-    const generatedRoom = Math.random()
-      .toString(36)
-      .substring(2, 8)
-      .toUpperCase();
-    navigate(`/room/${generatedRoom}`);
+    const newRoomCode = generateRoomCode();
+    navigate(`/room/${newRoomCode}`);
   };
 
   const joinRoom = () => {
     if (!roomCode.trim()) return alert("Please enter a room id");
-    console.log("clicket join room");
-    navigate(`/game`);
+
+    navigate(`/room/${roomCode.toUpperCase()}`);
   };
 
   return (
@@ -29,7 +30,7 @@ export default function Home() {
         {/* Create Room */}
         <button
           onClick={createRoom}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl text-lg font-semibold shadow-lg transition-all duration-200"
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-xl cursor-pointer text-lg font-semibold shadow-lg transition-all duration-200"
         >
           Create Room
         </button>
@@ -47,13 +48,13 @@ export default function Home() {
             value={roomCode}
             onChange={(e) => setRoomCode(e.target.value)}
             placeholder="e.g. 4F9P12"
-            className="w-full mt-2 p-3 rounded-xl bg-white/20 text-white placeholder-white/40 
+            className="w-full mt-2 p-3 rounded-xl bg-white/20 font-bold text-white placeholder-white/40 
             focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-lg transition-all"
           />
 
           <button
             onClick={joinRoom}
-            className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl text-lg font-semibold shadow-lg transition-all"
+            className="mt-4 w-full cursor-pointer bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl text-lg font-semibold shadow-lg transition-all"
           >
             Join Room
           </button>

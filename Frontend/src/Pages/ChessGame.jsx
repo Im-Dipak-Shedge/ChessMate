@@ -1,10 +1,34 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
+import { socket } from "../socket";
+import { useParams } from "react-router-dom";
 
 export default function ChessGame() {
   const [game, setGame] = useState(() => new Chess());
   const [moveLog, setMoveLog] = useState([]);
+
+  const { roomId } = useParams();
+  const [myColor, setMyColor] = useState(null);
+
+  useEffect(() => {
+    if (!roomId) return;
+    socket.emit("join-room", "test123");
+
+    socket.on("assign-color", (color) => {
+      console.log("My assigned color:", color);
+      setMyColor(color);
+    });
+
+    socket.on("both-joined", () => {
+      console.log("Both players are here — game starting!");
+    });
+
+    return () => {
+      socket.off("assign-color");
+      socket.off("both-joined");
+    };
+  }, [roomId]);
 
   const onDrop = useCallback(
     (sourceSquare, targetSquare) => {
@@ -72,7 +96,7 @@ export default function ChessGame() {
           onClick={resetGame}
           className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
         >
-          New Game
+          {myColor ? myColor : "not assigned yet"}
         </button>
       </div>
 

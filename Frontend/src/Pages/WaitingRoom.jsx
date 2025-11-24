@@ -1,13 +1,38 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { socket } from "../socket";
 
 export default function WaitingRoom() {
   const { roomId } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Example: listen for server event to start the game
-    // socket.on("start-game", () => navigate(`/game/${roomId}`));
-  }, []);
+    // Join room when user enters here
+    socket.emit("join-room", roomId);
+
+    //when room not exists
+    // socket.on("room-not-found", () => {
+    //   alert("Room does not exist!");
+    //   navigate("/");
+    // });
+
+    // Listen if room is full
+    socket.on("room-full", () => {
+      alert("Room is full!");
+      navigate("/");
+    });
+
+    // If both players joined → Go to game page
+    socket.on("both-joined", () => {
+      navigate(`/game/${roomId}`);
+    });
+
+    return () => {
+      socket.off("room-full");
+      socket.off("both-joined");
+      // socket.off("room-not-found");
+    };
+  }, [roomId, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-6">
@@ -30,7 +55,7 @@ export default function WaitingRoom() {
         {/* Copy Button */}
         <button
           onClick={() => navigator.clipboard.writeText(roomId)}
-          className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-3 rounded-xl text-lg font-semibold shadow-lg mb-8 transition-all"
+          className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-3 rounded-xl text-lg font-semibold shadow-lg mb-8 cursor-pointer transition-all"
         >
           Copy Room Code
         </button>
