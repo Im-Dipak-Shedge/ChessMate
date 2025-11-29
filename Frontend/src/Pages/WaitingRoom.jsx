@@ -1,38 +1,50 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { socket } from "../socket";
 
 export default function WaitingRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
+  const [myColor, setMyColor] = useState(null);
+
   useEffect(() => {
-    // Join room when user enters here
-    socket.emit("join-room", roomId);
+    const join = () => {
+      console.log("Joining room:", roomId);
+      socket.emit("join-room", roomId);
+    };
 
-    //when room not exists
-    // socket.on("room-not-found", () => {
-    //   alert("Room does not exist!");
-    //   navigate("/");
-    // });
+    if (socket.connected) {
+      join();
+    } else {
+      socket.once("connect", join);
+    }
 
-    // Listen if room is full
+    // RECEIVE COLOR
+    socket.on("player-color", (color) => {
+      console.log("Assigned color:", color);
+      setMyColor(color);
+      window.assignedColor = color; // store color safely
+    });
+
+    // BOTH PLAYERS READY → SEND COLOR + GO TO GAME
+    socket.on("both-joined", () => {
+      console.log("Both players joined → starting game");
+      navigate(`/game/${roomId}`, { state: { color: window.assignedColor } });
+    });
+
     socket.on("room-full", () => {
       alert("Room is full!");
       navigate("/");
     });
 
-    // If both players joined → Go to game page
-    socket.on("both-joined", () => {
-      navigate(`/game/${roomId}`);
-    });
-
     return () => {
-      socket.off("room-full");
+      socket.off("player-color");
       socket.off("both-joined");
-      // socket.off("room-not-found");
+      socket.off("room-full");
+      socket.off("connect", join);
     };
-  }, [roomId, navigate]);
+  }, [roomId, navigate]); // ✔️ FIXED
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-6">
@@ -45,14 +57,12 @@ export default function WaitingRoom() {
           Share this room code with your friend
         </p>
 
-        {/* Room Code Box */}
         <div className="bg-white/20 backdrop-blur-md border border-white/20 rounded-xl p-4 mb-6">
           <p className="text-white text-2xl font-mono tracking-widest">
             {roomId}
           </p>
         </div>
 
-        {/* Copy Button */}
         <button
           onClick={() => navigator.clipboard.writeText(roomId)}
           className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-3 rounded-xl text-lg font-semibold shadow-lg mb-8 cursor-pointer transition-all"
@@ -60,10 +70,15 @@ export default function WaitingRoom() {
           Copy Room Code
         </button>
 
-        {/* Loading Animation */}
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin h-10 w-10 border-4 border-white/30 border-t-white rounded-full"></div>
           <p className="text-white/70">Waiting for another player to join...</p>
+
+          {myColor && (
+            <p className="text-white text-lg mt-2">
+              Your color: <b>{myColor}</b>
+            </p>
+          )}
         </div>
       </div>
     </div>
