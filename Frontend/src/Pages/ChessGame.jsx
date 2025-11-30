@@ -52,6 +52,13 @@ export default function ChessGame() {
     ),
   };
 
+  //Sounds
+  const moveSound = new Audio("/sounds/move.mp3");
+  const captureSound = new Audio("/sounds/capture.mp3");
+  const checkSound = new Audio("/sounds/check.mp3");
+  const castleSound = new Audio("/sounds/castle.mp3");
+  const notifySound = new Audio("/sounds/notify.mp3");
+
   const [game, setGame] = useState(new Chess());
   const [moveLog, setMoveLog] = useState([]);
   const [myColor, setMyColor] = useState(null);
@@ -94,6 +101,7 @@ export default function ChessGame() {
     if (!playerName.trim()) return;
     socket.emit("playerName", { roomId, name: playerName });
     setShowPopup(false);
+    notifySound.play();
   };
 
   // GET PLAYER COLOR
@@ -117,6 +125,16 @@ export default function ChessGame() {
         ...prev,
         `${move.color === "w" ? "White" : "Black"}: ${move.san}`,
       ]);
+
+      if (move.flags.includes("c") || move.flags.includes("e")) {
+        captureSound.play();
+      } else if (move.flags.includes("k") || move.flags.includes("q")) {
+        castleSound.play();
+      } else if (current.inCheck()) {
+        checkSound.play();
+      } else {
+        moveSound.play();
+      }
 
       if (current.isGameOver()) setGameOver(true);
     };
@@ -147,6 +165,19 @@ export default function ChessGame() {
 
       if (!move) return false;
 
+      //sound handeling
+      if (move.flags.includes("c") || move.flags.includes("e")) {
+        // capture or en passant
+        captureSound.play();
+      } else if (move.flags.includes("k") || move.flags.includes("q")) {
+        // castling
+        castleSound.play();
+      } else if (newGame.inCheck()) {
+        checkSound.play();
+      } else {
+        // normal move
+        moveSound.play();
+      }
       setGame(newGame);
       setTurn(newGame.turn() === "w" ? "white" : "black");
 
@@ -154,6 +185,8 @@ export default function ChessGame() {
         ...prev,
         `${myColor === "white" ? "White" : "Black"}: ${move.san}`,
       ]);
+
+      console.log("move marlaa", move.flags);
 
       socket.emit("move", {
         roomId,
@@ -163,6 +196,7 @@ export default function ChessGame() {
           promotion: "q",
           san: move.san,
           color: myColor === "white" ? "w" : "b",
+          flags: move.flags,
         },
       });
 
@@ -171,6 +205,12 @@ export default function ChessGame() {
     },
     [playerName, myColor, turn, gameOver, roomId]
   );
+
+  useEffect(() => {
+    if (showPopup) {
+      notifySound.play();
+    }
+  }, [showPopup]);
 
   //handling players name
   useEffect(() => {
@@ -196,7 +236,14 @@ export default function ChessGame() {
   }, []);
 
   useEffect(() => {
+    if (gameOver) {
+      notifySound.play(); // play when checkmate/draw popup shows
+    }
+  }, [gameOver]);
+
+  useEffect(() => {
     if (opponentLeft) {
+      notifySound.play();
       const timer = setTimeout(() => {
         navigate("/"); // go back to home
       }, 10000);
@@ -361,6 +408,8 @@ export default function ChessGame() {
           </div>
 
           <Chessboard
+            key={myColor}
+            animationDuration={200} // forces rebuild of animations
             position={game.fen()}
             onPieceDrop={onDrop}
             boardWidth={Math.min(window.innerWidth - 2, 510)}

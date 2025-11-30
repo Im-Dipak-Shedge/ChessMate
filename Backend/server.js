@@ -75,6 +75,7 @@ io.on("connection", (socket) => {
             from: move.from,
             to: move.to,
             promotion: move.promotion || "q",
+            flags: move.flags,
         });
 
         if (!result) return;
