@@ -5,13 +5,52 @@ import { socket } from "../socket";
 import { useParams, useLocation } from "react-router-dom";
 import Navbar from "./../Components/Navbar";
 import { useNavigate } from "react-router-dom";
-import { FaChessKing, FaChessPawn } from "react-icons/fa";
 import { SiChessdotcom } from "react-icons/si";
 
 export default function ChessGame() {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const chessComPieces = {
+    wP: ({ squareWidth }) => (
+      <img src="/pieces/wp.png" style={{ width: squareWidth }} />
+    ),
+    wR: ({ squareWidth }) => (
+      <img src="/pieces/wr.png" style={{ width: squareWidth }} />
+    ),
+    wN: ({ squareWidth }) => (
+      <img src="/pieces/wn.png" style={{ width: squareWidth }} />
+    ),
+    wB: ({ squareWidth }) => (
+      <img src="/pieces/wb.png" style={{ width: squareWidth }} />
+    ),
+    wQ: ({ squareWidth }) => (
+      <img src="/pieces/wq.png" style={{ width: squareWidth }} />
+    ),
+    wK: ({ squareWidth }) => (
+      <img src="/pieces/wk.png" style={{ width: squareWidth }} />
+    ),
+
+    bP: ({ squareWidth }) => (
+      <img src="/pieces/bp.png" style={{ width: squareWidth }} />
+    ),
+    bR: ({ squareWidth }) => (
+      <img src="/pieces/br.png" style={{ width: squareWidth }} />
+    ),
+    bN: ({ squareWidth }) => (
+      <img src="/pieces/bn.png" style={{ width: squareWidth }} />
+    ),
+    bB: ({ squareWidth }) => (
+      <img src="/pieces/bb.png" style={{ width: squareWidth }} />
+    ),
+    bQ: ({ squareWidth }) => (
+      <img src="/pieces/bq.png" style={{ width: squareWidth }} />
+    ),
+    bK: ({ squareWidth }) => (
+      <img src="/pieces/bk.png" style={{ width: squareWidth }} />
+    ),
+  };
 
   const [game, setGame] = useState(new Chess());
   const [moveLog, setMoveLog] = useState([]);
@@ -22,6 +61,28 @@ export default function ChessGame() {
   const [OpponentName, setOpponentName] = useState("");
   const [showPopup, setShowPopup] = useState(true);
   const [opponentLeft, setOpponentLeft] = useState(false);
+
+  //  winner color and name
+  const isCheckmate = game.isCheckmate();
+  const isDraw = game.isDraw() || game.isStalemate();
+
+  let winnerColor = null;
+  let winnerName = null;
+
+  if (isCheckmate) {
+    // game.turn() is the side THAT WOULD MOVE next — that side lost.
+    winnerColor = game.turn() === "w" ? "black" : "white";
+    // Map color to the correct name (myColor is either "white" or "black")
+    if (myColor) {
+      winnerName = winnerColor === myColor ? playerName : OpponentName;
+    } else {
+      // fallback if myColor not known (shouldn't happen in normal flow)
+      winnerName =
+        winnerColor === "white"
+          ? playerName || OpponentName
+          : OpponentName || playerName;
+    }
+  }
 
   // Keep latest game in ref
   const gameRef = useRef(game);
@@ -137,21 +198,12 @@ export default function ChessGame() {
   useEffect(() => {
     if (opponentLeft) {
       const timer = setTimeout(() => {
-        // navigate("/"); // go back to home
+        navigate("/"); // go back to home
       }, 10000);
 
       return () => clearTimeout(timer);
     }
   }, [opponentLeft, navigate]);
-
-  // GAME STATUS
-  const getGameStatus = () => {
-    if (game.isCheckmate()) return "Checkmate!";
-    if (game.isStalemate()) return "Stalemate!";
-    if (game.isDraw()) return "Draw!";
-    if (game.inCheck()) return "Check!";
-    return `${game.turn() === "w" ? "White" : "Black"} to move`;
-  };
 
   return (
     <>
@@ -188,7 +240,7 @@ export default function ChessGame() {
       {opponentLeft && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="w-[90%] max-w-sm bg-black/70  border  p-6 rounded-2xl shadow-lg text-white text-center">
-            <h2 className="text-2xl font-bold mb-3 text-red-500">
+            <h2 className="text-2xl font-bold mb-3 text-red-600">
               {OpponentName} Left the game
             </h2>
             <p className="mb-6 text-gray-300">
@@ -206,36 +258,56 @@ export default function ChessGame() {
       )}
 
       {gameOver && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-[90%] max-w-md bg-gray-900 p-6 rounded-3xl shadow-2xl text-white text-center">
-            <h2 className="text-2xl font-bold mb-4">
-              {game.isCheckmate()
-                ? `${turn === "white" ? "Black" : "White"} Wins!`
-                : game.isDraw()
-                ? "Draw!"
-                : "Game Over"}
-            </h2>
-            {game.isCheckmate() && (
-              <p className="mb-6 text-lg">
-                Checkmate! Congratulations to{" "}
-                <span className="font-semibold">
-                  {turn === "white" ? "Black" : "White"}
-                </span>
-              </p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="w-[90%] max-w-md bg-stone-900 p-6 rounded-3xl shadow-2xl text-white text-center">
+            <div className="flex justify-center mb-4">
+              <span className="text-5xl">
+                {isCheckmate ? (
+                  winnerColor === "black" ? (
+                    "♟️"
+                  ) : (
+                    <SiChessdotcom className="h-10 w-10 text-white" />
+                  )
+                ) : (
+                  "⚖️"
+                )}
+              </span>
+            </div>
+
+            {isCheckmate ? (
+              <>
+                <h2 className="text-3xl font-bold mb-2">
+                  {winnerName ? `${winnerName} Wins!` : `${winnerColor} Wins!`}
+                </h2>
+                <p className="mb-6 text-lg">
+                  Checkmate! Congratulations to{" "}
+                  <span className="font-semibold text-blue-400">
+                    {winnerName || winnerColor}
+                  </span>
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-3xl font-bold mb-2">Draw!</h2>
+                <p className="mb-6 text-lg text-gray-300">
+                  The game ended in a draw.
+                </p>
+              </>
             )}
 
             <div className="flex gap-4 justify-center">
               <button
                 onClick={() => navigate("/")}
-                className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl font-semibold transition"
+                className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-xl font-semibold shadow-md transition"
               >
                 Go Home
               </button>
+
               <button
                 onClick={() => setGameOver(false)}
-                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-xl font-semibold transition"
+                className="bg-stone-700 hover:bg-stone-600 px-5 py-2 rounded-xl font-semibold shadow-md transition"
               >
-                Show Move Log
+                View Logs
               </button>
             </div>
           </div>
@@ -293,6 +365,7 @@ export default function ChessGame() {
             onPieceDrop={onDrop}
             boardWidth={Math.min(window.innerWidth - 2, 510)}
             boardOrientation={myColor === "black" ? "black" : "white"}
+            customPieces={chessComPieces}
             customBoardStyle={{
               borderRadius: "0",
               boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
@@ -317,15 +390,36 @@ export default function ChessGame() {
             </span>
           </div>
         </div>
-        <div className="flex-1 border max-h-[94vh] overflow-y-auto border-gray-300 rounded p-4">
-          <h2 className="text-lg mb-4 text-center">Move History</h2>
-          <div className="h-[90%] overflow-y-auto border border-gray-200 p-2">
+
+        {/* move logs  */}
+        <div className="flex-1 max-h-[94vh] overflow-y-auto bg-[#1e1e1e] rounded-xl p-4 shadow-lg">
+          <h2 className="text-lg mb-4 text-center font-semibold text-white">
+            Move History
+          </h2>
+
+          <div className="h-[90%] overflow-y-auto space-y-2 pr-2">
             {moveLog.length > 0 ? (
-              moveLog.map((move, index) => (
-                <div key={index} className="p-2 border-b border-gray-200">
-                  {`${Math.floor(index / 2) + 1}. ${move}`}
-                </div>
-              ))
+              moveLog
+                .reduce((rows, move, index) => {
+                  const rowIndex = Math.floor(index / 2);
+                  if (!rows[rowIndex])
+                    rows[rowIndex] = { white: "", black: "" };
+
+                  if (index % 2 === 0) rows[rowIndex].white = move;
+                  else rows[rowIndex].black = move;
+
+                  return rows;
+                }, [])
+                .map((row, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[40px_1fr_1fr] items-center bg-[#2a2a2a] rounded-lg px-3 py-2 text-gray-200 hover:bg-[#333] transition"
+                  >
+                    <div className="text-gray-400 font-semibold">{i + 1}.</div>
+                    <div className="font-medium">{row.white}</div>
+                    <div className="font-medium">{row.black}</div>
+                  </div>
+                ))
             ) : (
               <div className="text-center italic text-gray-500">
                 No moves yet
