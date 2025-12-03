@@ -6,6 +6,8 @@ import { useParams, useLocation } from "react-router-dom";
 import Navbar from "./../Components/Navbar";
 import { useNavigate } from "react-router-dom";
 import { SiChessdotcom } from "react-icons/si";
+import Interaction from "./../Components/Interaction";
+import Draggable from "react-draggable";
 
 export default function ChessGame() {
   const { roomId } = useParams();
@@ -68,10 +70,23 @@ export default function ChessGame() {
   const [OpponentName, setOpponentName] = useState("");
   const [showPopup, setShowPopup] = useState(true);
   const [opponentLeft, setOpponentLeft] = useState(false);
+  const dragRef = useRef(null);
+  const isMobile = window.innerWidth < 768;
+
+  //for chatbox
+  const [messages, setMessages] = useState([]);
+
+  const chatInfo = {
+    playerName,
+    OpponentName,
+    opponentLeft,
+    myColor,
+    roomId,
+    messages,
+  };
 
   //  winner color and name
   const isCheckmate = game.isCheckmate();
-  const isDraw = game.isDraw() || game.isStalemate();
 
   let winnerColor = null;
   let winnerName = null;
@@ -110,6 +125,17 @@ export default function ChessGame() {
       setMyColor(location.state.color);
     }
   }, [location]);
+
+  useEffect(() => {
+    const isDesktop = window.innerWidth >= 768; // desktop only
+    if (isDesktop) {
+      document.body.style.overflow = "hidden"; // block main scroll
+    }
+
+    return () => {
+      document.body.style.overflow = "auto"; // restore scroll on unmount
+    };
+  }, []);
 
   // SOCKET — OPPONENT MOVE
   useEffect(() => {
@@ -156,14 +182,18 @@ export default function ChessGame() {
   // CHESS MOVE HANDLER
   const onDrop = useCallback(
     (from, to) => {
-      if (!playerName) return false; // <-- NEW: block until name entered
+      if (window.innerWidth < 768) return false; //disabling the dragevent on mobile
+      if (!playerName) return false;
       if (gameOver) return false;
       if (turn !== myColor) return false;
 
       const newGame = new Chess(gameRef.current.fen());
       const move = newGame.move({ from, to, promotion: "q" });
 
-      if (!move) return false;
+      if (!move) {
+        setGame((g) => new Chess(g.fen()));
+        return false;
+      }
 
       //sound handeling
       if (move.flags.includes("c") || move.flags.includes("e")) {
@@ -186,8 +216,6 @@ export default function ChessGame() {
         `${myColor === "white" ? "White" : "Black"}: ${move.san}`,
       ]);
 
-      console.log("move marlaa", move.flags);
-
       socket.emit("move", {
         roomId,
         move: {
@@ -205,6 +233,8 @@ export default function ChessGame() {
     },
     [playerName, myColor, turn, gameOver, roomId]
   );
+
+  //mobile drag issue
 
   useEffect(() => {
     if (showPopup) {
@@ -252,10 +282,159 @@ export default function ChessGame() {
     }
   }, [opponentLeft, navigate]);
 
+  //msg handeling
+  const sendMessage = (msg) => {
+    socket.emit("send-message", { roomId, message: msg });
+    setMessages((prev) => [...prev, { me: true, text: msg }]);
+  };
+
+  const handleChatMessage = (msg) => {
+    console.log("Message received from ChatBox:", msg);
+    sendMessage(msg);
+  };
+
+  // Receive message
+  useEffect(() => {
+    socket.on("receive-message", (msg) => {
+      setMessages((prev) => [...prev, { me: false, text: msg }]);
+    });
+
+    return () => socket.off("receive-message");
+  }, []);
+
+  const [highlightSquares, setHighlightSquares] = useState({});
+  const [selectedSquare, setSelectedSquare] = useState(null);
+
+  const onSquareClick = (square) => {
+    const piece = game.get(square); // piece on clicked square
+    const moves = game.moves({ square, verbose: true });
+
+    // 1️⃣ No piece selected yet → try to select
+    if (!selectedSquare) {
+      if (!piece || moves.length === 0) return; // invalid selection
+      const highlights = {};
+      moves.forEach((move) => {
+        const targetPiece = game.get(move.to);
+        const movingPiece = game.get(square);
+
+        if (targetPiece && targetPiece.color !== movingPiece.color) {
+          // capture → hollow ring
+          highlights[move.to] = {
+            background: "transparent",
+            boxShadow: "inset 0 0 0 4px rgba(0,0,0,0.2)",
+            borderRadius: "50%",
+          };
+        } else {
+          // normal move → small dot
+          highlights[move.to] = {
+            background:
+              "radial-gradient(circle, rgba(0,0,0,0.2) 25%, transparent 25%)",
+            borderRadius: "50%",
+          };
+        }
+      });
+
+      setHighlightSquares(highlights);
+
+      setSelectedSquare(square);
+      return;
+    }
+
+    // 2️⃣ Already selected → click another own piece → switch selection
+    const selectedPiece = game.get(selectedSquare);
+    if (piece && piece.color === selectedPiece?.color) {
+      if (moves.length === 0) {
+        // clicked own piece with no moves → keep old selection
+        return;
+      }
+      const highlights = {};
+      moves.forEach((move) => {
+        const targetPiece = game.get(move.to);
+        const movingPiece = game.get(square);
+
+        if (targetPiece && targetPiece.color !== movingPiece.color) {
+          // capture → hollow ring
+          highlights[move.to] = {
+            background: "transparent",
+            boxShadow: "inset 0 0 0 4px rgba(0,0,0,0.2)",
+            borderRadius: "50%",
+          };
+        } else {
+          // normal move → small dot
+          highlights[move.to] = {
+            background:
+              "radial-gradient(circle, rgba(0,0,0,0.2) 25%, transparent 25%)",
+            borderRadius: "50%",
+          };
+        }
+      });
+
+      setHighlightSquares(highlights);
+
+      setSelectedSquare(square);
+      return;
+    }
+
+    // 3️⃣ Attempt move
+    const newGame = new Chess(gameRef.current.fen());
+    let move;
+    try {
+      move = newGame.move({ from: selectedSquare, to: square, promotion: "q" });
+    } catch (err) {
+      console.log("chess.js threw invalid move error:", err);
+      setSelectedSquare(null);
+      setHighlightSquares({});
+      return;
+    }
+
+    if (!move) {
+      // invalid move → reset selection & highlights
+      setSelectedSquare(null);
+      setHighlightSquares({});
+      return;
+    }
+
+    // 4️⃣ Valid move → update game
+    setGame(newGame);
+    setTurn(newGame.turn() === "w" ? "white" : "black");
+
+    setMoveLog((prev) => [
+      ...prev,
+      `${myColor === "white" ? "White" : "Black"}: ${move.san}`,
+    ]);
+
+    socket.emit("move", {
+      roomId,
+      move: {
+        from: selectedSquare,
+        to: square,
+        promotion: "q",
+        san: move.san,
+        color: myColor === "white" ? "w" : "b",
+        flags: move.flags,
+      },
+    });
+
+    // play sounds
+    if (move.flags.includes("c") || move.flags.includes("e"))
+      captureSound.play();
+    else if (move.flags.includes("k") || move.flags.includes("q"))
+      castleSound.play();
+    else if (newGame.inCheck()) checkSound.play();
+    else moveSound.play();
+
+    if (newGame.isGameOver()) setGameOver(true);
+
+    // clear selection & highlights after move
+    setSelectedSquare(null);
+    setHighlightSquares({});
+  };
+
   return (
     <>
       {/* NAVBAR */}
       <Navbar />
+
       {/* NAME POPUP */}
       {showPopup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-50">
@@ -361,15 +540,25 @@ export default function ChessGame() {
         </div>
       )}
 
-      {/* MAIN UI (disabled while popup is open) */}
-      <div
-        className={`max-w-[1200px] mt-5 text-white mx-auto flex gap-5 flex-col md:flex-row ${
-          showPopup ? "opacity-100 pointer-events-none" : ""
-        }`}
-      >
-        <div className="flex-2 max-w-[600px]">
-          <div
-            className={`text-center text-lg font-semibold px-4 py-2 rounded-lg w-max mx-auto mb-4 
+      {!showPopup && !opponentLeft && !gameOver && (
+        <Draggable nodeRef={dragRef} bounds="parent">
+          <div ref={dragRef} className="absolute top-20 right-135 z-50">
+            <div className="hidden  md:block text-white">
+              <Interaction chatInfo={chatInfo} onChatSend={handleChatMessage} />
+            </div>
+          </div>
+        </Draggable>
+      )}
+      {/* MAIN UI  */}
+      <div className="relative w-full h-screen md:overflow-hidden ">
+        <div
+          className={`max-w-[1200px] mt-5 text-white mx-auto flex gap-5 flex-col md:flex-row  ${
+            showPopup ? "opacity-100 pointer-events-none" : ""
+          }`}
+        >
+          <div className="flex-2 max-w-[600px]">
+            <div
+              className={`text-center text-lg font-semibold px-4 py-2 rounded-lg w-max mx-auto mb-4 
     ${
       game.isCheckmate()
         ? "bg-red-700 text-white"
@@ -379,101 +568,120 @@ export default function ChessGame() {
         ? "bg-red-500 text-white animate-pulse"
         : "bg-white/10 text-white"
     }`}
-          >
-            {game.isCheckmate()
-              ? "Checkmate!"
-              : game.isStalemate()
-              ? "Stalemate!"
-              : game.isDraw()
-              ? "Draw!"
-              : game.inCheck()
-              ? `${game.turn() === "w" ? "White" : "Black"} in Check!`
-              : `${game.turn() === "w" ? "White" : "Black"} to move`}
-          </div>
-
-          {/* opponentnamediv */}
-          <div className="flex items-center gap-3 p-2 mb-0.5 w-max rounded-lg shadow-md">
-            <div
-              className={`w-6 h-6 flex items-center justify-center  rounded-sm ${
-                myColor === "black"
-                  ? "text-white bg-[#779952]"
-                  : "text-black bg-[#edeed1]"
-              }`}
             >
-              <SiChessdotcom className="w-4 h-4" />
+              {game.isCheckmate()
+                ? "Checkmate!"
+                : game.isStalemate()
+                ? "Stalemate!"
+                : game.isDraw()
+                ? "Draw!"
+                : game.inCheck()
+                ? `${game.turn() === "w" ? "White" : "Black"} in Check!`
+                : `${game.turn() === "w" ? "White" : "Black"} to move`}
             </div>
-            <span className="text-white font-semibold">
-              {OpponentName || "Waiting..."}
-            </span>
-          </div>
 
-          <Chessboard
-            key={myColor}
-            animationDuration={200} // forces rebuild of animations
-            position={game.fen()}
-            onPieceDrop={onDrop}
-            boardWidth={Math.min(window.innerWidth - 2, 510)}
-            boardOrientation={myColor === "black" ? "black" : "white"}
-            customPieces={chessComPieces}
-            customBoardStyle={{
-              borderRadius: "0",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
-            }}
-            customDarkSquareStyle={{ backgroundColor: "#779952" }}
-            customLightSquareStyle={{ backgroundColor: "#edeed1" }}
-          />
-
-          {/* theplayers div  */}
-          <div className="flex items-center gap-3 p-2 rounded-lg shadow-md w-max">
-            <div
-              className={`w-6 h-6 flex items-center justify-center  rounded-sm ${
-                myColor === "white"
-                  ? "text-white bg-[#779952]"
-                  : "text-black bg-[#edeed1]"
-              }`}
-            >
-              <SiChessdotcom className=" w-4 h-4" />
-            </div>
-            <span className="text-white font-semibold">
-              {playerName || "Waiting..."}
-            </span>
-          </div>
-        </div>
-
-        {/* move logs  */}
-        <div className="flex-1 max-h-[94vh] overflow-y-auto bg-[#1e1e1e] rounded-xl p-4 shadow-lg">
-          <h2 className="text-lg mb-4 text-center font-semibold text-white">
-            Move History
-          </h2>
-
-          <div className="h-[90%] overflow-y-auto space-y-2 pr-2">
-            {moveLog.length > 0 ? (
-              moveLog
-                .reduce((rows, move, index) => {
-                  const rowIndex = Math.floor(index / 2);
-                  if (!rows[rowIndex])
-                    rows[rowIndex] = { white: "", black: "" };
-
-                  if (index % 2 === 0) rows[rowIndex].white = move;
-                  else rows[rowIndex].black = move;
-
-                  return rows;
-                }, [])
-                .map((row, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-[40px_1fr_1fr] items-center bg-[#2a2a2a] rounded-lg px-3 py-2 text-gray-200 hover:bg-[#333] transition"
-                  >
-                    <div className="text-gray-400 font-semibold">{i + 1}.</div>
-                    <div className="font-medium">{row.white}</div>
-                    <div className="font-medium">{row.black}</div>
-                  </div>
-                ))
-            ) : (
-              <div className="text-center italic text-gray-500">
-                No moves yet
+            {/* opponentnamediv */}
+            <div className="flex  items-center gap-3 p-2 px-4 mb-0.5 w-max rounded-lg shadow-md">
+              <div
+                className={`w-6 h-6 flex items-center justify-center  rounded-sm ${
+                  myColor === "black"
+                    ? "text-white bg-[#779952]"
+                    : "text-black bg-[#edeed1]"
+                }`}
+              >
+                <SiChessdotcom className="w-4 h-4" />
               </div>
-            )}
+              <span className="text-white  font-semibold">
+                {OpponentName || "Waiting..."}
+              </span>
+            </div>
+
+            <Chessboard
+              key={myColor}
+              animationDuration={100}
+              customSquareStyles={highlightSquares}
+              position={game.fen()}
+              onPieceDrop={onDrop}
+              onSquareClick={onSquareClick}
+              selectedSquare={selectedSquare}
+              arePiecesDraggable={window.innerWidth >= 768}
+              boardWidth={Math.min(window.innerWidth - 2, 510)}
+              boardOrientation={myColor === "black" ? "black" : "white"}
+              customPieces={chessComPieces}
+              customBoardStyle={{
+                borderRadius: "0",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
+              }}
+              customDarkSquareStyle={{ backgroundColor: "#779952" }}
+              customLightSquareStyle={{ backgroundColor: "#edeed1" }}
+            />
+
+            {/* players div  */}
+            <div className="flex items-center justify-between px-2 pr-4">
+              <div className="flex gap-3 p-2 w-max">
+                <div
+                  className={`w-6 h-6 flex items-center justify-center  rounded-sm ${
+                    myColor === "white"
+                      ? "text-white bg-[#779952]"
+                      : "text-black bg-[#edeed1]"
+                  }`}
+                >
+                  <SiChessdotcom className=" w-4 h-4" />
+                </div>
+                <span className="text-white  font-semibold">
+                  {playerName || "Waiting..."}
+                </span>
+              </div>
+
+              {/* Interaction — MOBILE ONLY */}
+              <div className="md:hidden">
+                <Interaction
+                  chatInfo={chatInfo}
+                  onChatSend={handleChatMessage}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="relative flex-1 md:pt-20">
+            {/* Move log container (keeps full size) */}
+            <div className=" overflow-y-auto bg-[#1e1e1e] rounded-xl p-4 shadow-lg">
+              <h2 className="text-lg mb-4 text-center font-semibold text-white">
+                Move History
+              </h2>
+
+              <div className="h-[90%] overflow-y-auto space-y-2 pr-2  md:max-h-[73vh]">
+                {/* move log list */}
+                {moveLog.length > 0 ? (
+                  moveLog
+                    .reduce((rows, move, index) => {
+                      const rowIndex = Math.floor(index / 2);
+                      if (!rows[rowIndex])
+                        rows[rowIndex] = { white: "", black: "" };
+
+                      if (index % 2 === 0) rows[rowIndex].white = move;
+                      else rows[rowIndex].black = move;
+
+                      return rows;
+                    }, [])
+                    .map((row, i) => (
+                      <div
+                        key={i}
+                        className="grid grid-cols-[40px_1fr_1fr] items-center bg-[#2a2a2a] rounded-lg px-3 py-2 text-gray-200 hover:bg-[#333] transition"
+                      >
+                        <div className="text-gray-400 font-semibold">
+                          {i + 1}.
+                        </div>
+                        <div className="font-medium">{row.white}</div>
+                        <div className="font-medium">{row.black}</div>
+                      </div>
+                    ))
+                ) : (
+                  <div className="text-center italic text-gray-500">
+                    No moves yet
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

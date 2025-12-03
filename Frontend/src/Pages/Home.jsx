@@ -37,7 +37,9 @@ export default function Home() {
 
         <div className="my-8 flex items-center">
           <div className="flex-grow h-px bg-white/20"></div>
-          <span className="mx-3 text-white/60 text-sm">OR</span>
+          <span className="mx-3 text-white/60 text-sm md:text-md md:font-bold">
+            OR
+          </span>
           <div className="flex-grow h-px bg-white/20"></div>
         </div>
 

@@ -3,3 +3,34 @@
 :root {
     background-color: #27272A;
 }
+
+
+/* Ultra-thin modern scrollbar */
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Scrollbar handle */
+::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 100, 0.4);
+    border-radius: 10px;
+    backdrop-filter: blur(3px);
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 100, 0.8);
+    transform: scaleX(1.5);
+}
+
+/* Smooth scrolling for whole page */
+html {
+    scroll-behavior: smooth;
+}

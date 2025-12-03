@@ -87,7 +87,14 @@ io.on("connection", (socket) => {
         io.in(roomId).emit("board-state", game.fen());
     });
 
-    // DISCONNECT
+    //msg passing in chatbox
+
+    socket.on("send-message", ({ roomId, message }) => {
+        socket.to(roomId).emit("receive-message", message);
+    });
+
+
+
     // DISCONNECTING
     socket.on("disconnecting", () => {
         for (const roomId of socket.rooms) {
