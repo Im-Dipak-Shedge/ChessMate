@@ -76,7 +76,7 @@ const ChatBox = ({ onClose, positionClass, chatInfo, onChatSend }) => {
               className={`max-w-[80%] px-4 py-2 text-sm md:text-md md:font-semibold font-medium 
               ${
                 msg.me
-                  ? "bg-[#73a341] text-white rounded-2xl rounded-tr-sm"
+                  ? "bg-[#0e910c] text-white rounded-2xl rounded-tr-sm"
                   : "bg-neutral-600 text-white rounded-2xl rounded-tl-sm"
               }`}
             >
@@ -90,7 +90,7 @@ const ChatBox = ({ onClose, positionClass, chatInfo, onChatSend }) => {
       <div className="flex gap-3 p-4 border-t border-neutral-700 bg-neutral-900">
         <input
           className="flex-1 bg-neutral-800 h-10 rounded-lg px-3 text-sm text-neutral-200 
-          border border-neutral-700 outline-none focus:border-blue-500 transition"
+          border border-neutral-700 outline-none focus:border-[#0e910c] transition"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyPress={handleKeyPress}
@@ -100,8 +100,8 @@ const ChatBox = ({ onClose, positionClass, chatInfo, onChatSend }) => {
           onClick={sendMessage}
           disabled={!text.trim()}
           className="flex items-center justify-center w-10 h-10 
-          bg-blue-600 text-white rounded-lg 
-          hover:bg-blue-500 active:scale-95 transition 
+          bg-[#0e910c] text-white rounded-lg 
+          hover:bg-[#15ad12] active:scale-95 transition 
           disabled:bg-neutral-700 disabled:text-neutral-500"
         >
           <MdSend size={20} />

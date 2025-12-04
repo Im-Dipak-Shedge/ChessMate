@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PiSpeakerHighFill, PiSpeakerXFill } from "react-icons/pi";
 import { IoMdMic, IoMdMicOff } from "react-icons/io";
 import { BsChatDotsFill } from "react-icons/bs";
@@ -8,6 +8,13 @@ const Interaction = ({ chatInfo, onChatSend }) => {
   const [micOn, setMicOn] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
+
+  useEffect(() => {
+    if (!chatOpen && chatInfo.messages.length > 0) {
+      setHasNewMessage(true);
+    }
+  }, [chatInfo.messages]);
 
   return (
     <div className="relative  hover:shadow-lg shadow-stone-900 rounded-xl">
@@ -36,11 +43,26 @@ const Interaction = ({ chatInfo, onChatSend }) => {
 
         {/* CHAT BUTTON */}
         <button
-          onClick={() => setChatOpen((prev) => !prev)}
-          className={`w-12 h-12 cursor-pointer bg-stone-800 rounded-full flex items-center justify-center text-xl active:scale-90
-    text-white`}
+          onClick={() => {
+            setChatOpen((prev) => !prev);
+            setHasNewMessage(false);
+          }}
+          className={`
+    relative w-12 h-12 cursor-pointer bg-stone-800 rounded-full
+    flex items-center justify-center text-xl active:scale-90 text-white
+    transition-all duration-300
+    ${hasNewMessage ? "shadow-[0_0_15px_4px_rgba(100,255,100,0.25)]" : ""}
+  `}
         >
           <BsChatDotsFill size={20} />
+
+          {/* Unread Dot */}
+          {hasNewMessage && (
+            <span className="absolute md:top-2 h-2 w-2 right-3 top-3 md:right-2 md:w-3 md:h-3 bg-green-500 rounded-full animate-ping"></span>
+          )}
+          {hasNewMessage && (
+            <span className="absolute md:top-2 right-3 top-3 h-2 w-2 md:right-2 md:w-3 md:h-3 bg-green-400 rounded-full"></span>
+          )}
         </button>
       </div>
 

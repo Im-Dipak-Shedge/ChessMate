@@ -60,6 +60,7 @@ export default function ChessGame() {
   const checkSound = new Audio("/sounds/check.mp3");
   const castleSound = new Audio("/sounds/castle.mp3");
   const notifySound = new Audio("/sounds/notify.mp3");
+  const msgAlert = new Audio("/sounds/messageAlert.mp3");
 
   const [game, setGame] = useState(new Chess());
   const [moveLog, setMoveLog] = useState([]);
@@ -289,7 +290,6 @@ export default function ChessGame() {
   };
 
   const handleChatMessage = (msg) => {
-    console.log("Message received from ChatBox:", msg);
     sendMessage(msg);
   };
 
@@ -297,6 +297,7 @@ export default function ChessGame() {
   useEffect(() => {
     socket.on("receive-message", (msg) => {
       setMessages((prev) => [...prev, { me: false, text: msg }]);
+      msgAlert.play();
     });
 
     return () => socket.off("receive-message");
@@ -306,6 +307,9 @@ export default function ChessGame() {
   const [selectedSquare, setSelectedSquare] = useState(null);
 
   const onSquareClick = (square) => {
+    if (!playerName) return;
+    if (gameOver) return;
+    if (turn !== myColor) return;
     const piece = game.get(square); // piece on clicked square
     const moves = game.moves({ square, verbose: true });
 
