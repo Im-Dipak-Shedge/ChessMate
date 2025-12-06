@@ -1,104 +1,9 @@
-// import React, { useState, useEffect } from "react";
-// import { PiSpeakerHighFill, PiSpeakerXFill } from "react-icons/pi";
-// import { IoMdMic, IoMdMicOff } from "react-icons/io";
-// import { BsChatDotsFill } from "react-icons/bs";
-// import ChatBox from "./ChatBox";
-
-// const Interaction = ({ chatInfo, onChatSend }) => {
-//   const [micOn, setMicOn] = useState(false);
-//   const [speakerOn, setSpeakerOn] = useState(false);
-//   const [chatOpen, setChatOpen] = useState(false);
-//   const [hasNewMessage, setHasNewMessage] = useState(false);
-
-//   useEffect(() => {
-//     if (!chatOpen && chatInfo.messages.length > 0) {
-//       setHasNewMessage(true);
-//     }
-//   }, [chatInfo.messages]);
-
-//   return (
-//     <div className="relative  hover:shadow-lg shadow-stone-900 rounded-xl">
-//       <div className="px-4 flex cursor-move items-center justify-center gap-3 py-2 w-max bg-neutral-700 rounded-xl my-2">
-//         {/* MIC BUTTON */}
-//         <button
-//           onClick={() => setMicOn((prev) => !prev)}
-//           className={`w-12 h-12 bg-stone-800 cursor-pointer rounded-full flex items-center justify-center text-xl active:scale-90
-//             ${micOn ? "text-green-400" : "text-red-500"}`}
-//         >
-//           {micOn ? <IoMdMic size={20} /> : <IoMdMicOff size={20} />}
-//         </button>
-
-//         {/* SPEAKER BUTTON */}
-//         <button
-//           onClick={() => setSpeakerOn((prev) => !prev)}
-//           className={`w-12 h-12 bg-stone-800 cursor-pointer rounded-full flex items-center justify-center text-xl active:scale-90
-//             ${speakerOn ? "text-green-400" : "text-red-500"}`}
-//         >
-//           {speakerOn ? (
-//             <PiSpeakerHighFill size={20} />
-//           ) : (
-//             <PiSpeakerXFill size={20} />
-//           )}
-//         </button>
-
-//         {/* CHAT BUTTON */}
-//         <button
-//           onClick={() => {
-//             setChatOpen((prev) => !prev);
-//             setHasNewMessage(false);
-//           }}
-//           className={`
-//     relative w-12 h-12 cursor-pointer bg-stone-800 rounded-full
-//     flex items-center justify-center text-xl active:scale-90 text-white
-//     transition-all duration-300
-//     ${hasNewMessage ? "shadow-[0_0_15px_4px_rgba(100,255,100,0.25)]" : ""}
-//   `}
-//         >
-//           <BsChatDotsFill size={20} />
-
-//           {/* Unread Dot */}
-//           {hasNewMessage && (
-//             <span className="absolute md:top-2 h-2 w-2 right-3 top-3 md:right-2 md:w-3 md:h-3 bg-green-500 rounded-full animate-ping"></span>
-//           )}
-//           {hasNewMessage && (
-//             <span className="absolute md:top-2 right-3 top-3 h-2 w-2 md:right-2 md:w-3 md:h-3 bg-green-400 rounded-full"></span>
-//           )}
-//         </button>
-//       </div>
-
-//       {/* Popup Chat Box */}
-//       {chatOpen && (
-//         <ChatBox
-//           chatInfo={chatInfo}
-//           onChatSend={onChatSend}
-//           onClose={() => setChatOpen(false)}
-//           positionClass="
-//             absolute right-0
-//             bottom-[4.8rem]
-//             md:top-[4.8rem] md:bottom-auto
-//             w-75 md:w-120
-//           "
-//         />
-//       )}
-//     </div>
-//   );
-// };
-
-// export default Interaction;
 import React, { useEffect, useRef, useState } from "react";
 import { PiSpeakerHighFill, PiSpeakerXFill } from "react-icons/pi";
 import { IoMdMic, IoMdMicOff } from "react-icons/io";
 import { BsChatDotsFill } from "react-icons/bs";
 import ChatBox from "./ChatBox";
 import { socket } from "../socket";
-
-// Interaction.jsx
-// Rewritten audio logic:
-// - ensures local audio track is attached BEFORE creating offer
-// - robust ICE handling (onicecandidate + addIceCandidate)
-// - uses a TURN fallback (metered TURN for testing)
-// - avoids race conditions and cleans up listeners/streams
-// - keeps the original UI and mic/speaker toggles
 
 export default function Interaction({ chatInfo, onChatSend }) {
   const roomId = chatInfo?.roomId;
@@ -107,7 +12,7 @@ export default function Interaction({ chatInfo, onChatSend }) {
   const localStreamRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
-  const [micOn, setMicOn] = useState(true);
+  const [micOn, setMicOn] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [hasNewMessage, setHasNewMessage] = useState(false);
@@ -211,6 +116,9 @@ export default function Interaction({ chatInfo, onChatSend }) {
   const ensureLocalAudioAndAttach = async () => {
     if (!localStreamRef.current) {
       localStreamRef.current = await getLocalStream();
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = micOn; // micOn is false initially → track.disabled
+      });
     }
 
     if (!pcRef.current) pcRef.current = createPeerConnection();
