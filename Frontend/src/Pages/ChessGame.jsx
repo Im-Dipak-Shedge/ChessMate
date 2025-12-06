@@ -86,6 +86,11 @@ export default function ChessGame() {
     messages,
   };
 
+  //For audio feature
+  const pcRef = useRef(null);
+  const localStream = useRef(null);
+  const remoteAudio = useRef(null);
+
   //  winner color and name
   const isCheckmate = game.isCheckmate();
 
@@ -548,7 +553,14 @@ export default function ChessGame() {
         <Draggable nodeRef={dragRef} bounds="parent">
           <div ref={dragRef} className="absolute top-20 right-135 z-50">
             <div className="hidden  md:block text-white">
-              <Interaction chatInfo={chatInfo} onChatSend={handleChatMessage} />
+              <Interaction
+                chatInfo={chatInfo}
+                socket={socket}
+                pcRef={pcRef}
+                localStream={localStream}
+                remoteAudio={remoteAudio}
+                onChatSend={handleChatMessage}
+              />
             </div>
           </div>
         </Draggable>
@@ -602,7 +614,7 @@ export default function ChessGame() {
 
             <Chessboard
               key={myColor}
-              animationDuration={100}
+              animationDuration={myColor == "white" ? 100 : 0}
               customSquareStyles={highlightSquares}
               position={game.fen()}
               onPieceDrop={onDrop}
@@ -642,6 +654,10 @@ export default function ChessGame() {
                 <Interaction
                   chatInfo={chatInfo}
                   onChatSend={handleChatMessage}
+                  socket={socket}
+                  pcRef={pcRef}
+                  localStream={localStream}
+                  remoteAudio={remoteAudio}
                 />
               </div>
             </div>
@@ -688,6 +704,7 @@ export default function ChessGame() {
             </div>
           </div>
         </div>
+        <audio ref={remoteAudio} autoPlay playsInline />
       </div>
     </>
   );
